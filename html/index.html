@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youtube clone</title>
+</head>
+
+<body>
+    <!-- Header -> logo + search + icons -->
+    <header class="header">
+        <div class="container">
+            <div class="header-left">
+                <img src="assets/images/menu.png" alt="menu" class="menu">
+                <div class="logo">
+                    <img src="assets/images/yt.png" alt="yt logo" width="50px" height="50px" class="menu">
+                    <a href="https://www.youtube.com/" target="_top" class="logo">Youtube <sup>PK</sup></a>
+                </div>
+            </div>
+            <div class="header-center">
+                <div>
+                    <form action="" class="search-form">
+                        <label for="search">Search for youtube</label>
+                        <input id="search" type="text" autocomplete="off" placeholder="Search for yt"
+                            class="search-input">
+                        <button type="submit" class="search-btn">
+                            <img src="assets/images/search.png" alt="search" class="search-icon">
+                        </button>
+                    </form>
+                </div>
+                <img src="assets/images/voice.png" alt="voice" class="voice-icon">
+
+            </div>
+            <div class="header-right">
+                <button class="create-btn">
+                    <img src="assets/images/create.png" alt="create" class="create-icon">
+                    Create
+                </button>
+
+                <button>
+                    <img src="assets/images/notification.png" alt="notification" class="header-icon">
+                    <span>9</span>
+                </button>
+                <button>
+                    <img src="assets/images/profile.png" alt="profile" class="header-icon profile">
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-body">
+        <!-- sidebar -->
+        <aside class="sidebar">
+            <ul class="sidebar-list">
+                <li class="sidebar-item active">
+                    <a href="https://www.youtube.com/" target="_top">
+                        <img src="assets/images/home.png" alt="home" class="sidebar-icon">
+                        Home
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a href="https://www.youtube.com/feed/trending" target="_top">
+                        <img src="assets/images/shorts.png" alt="shorts" class="sidebar-icon">
+                        Shorts
+                    </a>
+                </li>
+                <hr />
+                <div>
+                    <span>Subscriptions</span>
+                    <li class="sidebar-item">
+                        <img src="assets/images/subscription.png" alt="subscription" class="sidebar-icon">
+                        Subscription
+                    </li>
+                    <li class="sidebar-item">
+                        <img src="assets/images/library.png" alt="library" class="sidebar-icon">
+                        Library
+                    </li>
+                </div>
+                <p>
+                    <hr />
+                    <span>Explore</span>
+                </p>
+            </ul>
+            <footer>
+                <p>Copyright &copy; 2024 PK</p>
+            </footer>
+        </aside>
+        <!-- main content -->
+        <main>
+            <div>
+                <div class="filter-chips-row">
+                    <button class="filter-chip active">All</button>
+                    <button class="filter-chip">Live</button>
+                    <button class="filter-chip">Gaming</button>
+                    <button class="filter-chip">Music</button>
+                    <button class="filter-chip">News</button>
+                    <button class="filter-chip">Sports</button>
+                    <button class="filter-chip">Learning</button>
+                    <button class="filter-chip">Fashion</button>
+                    <button class="filter-chip">Beauty</button>
+                </div>
+                <section class="video-list">
+                    <article class="video-card">
+                        <iframe width="560" height="315"
+                            src="https://www.youtube.com/embed/CmbMFOMgLOs?si=TD7ZhkNKKh66Fu1m"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                        <div class="video-info">
+                            <div class="video-meta">
+                                <h3 class="video-title">How to make a youtube clone using HTML and CSS</h3>
+                                <img src="assets/images/menu.png" alt="three dots" class="three-dots">
+                            </div>
+                            <p class="video-stats">1M views · 1 day ago</p>
+                            <div>
+                                <img src="assets/images/channel.png" alt="channel" class="channel-icon">
+                                <span class="channel-name">Code with PK</span>
+                            </div>
+                            <p>#tags</p>
+                            <span>4K</span>
+                        </div>
+                    </article>
+                    <br />
+                    <article class="video-card">
+                        <iframe width="560" height="315"
+                            src="https://www.youtube.com/embed/CmbMFOMgLOs?si=TD7ZhkNKKh66Fu1m"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                        <div class="video-info">
+                            <div class="video-meta">
+                                <h3 class="video-title">How to make a youtube clone using HTML and CSS</h3>
+                                <img src="assets/images/menu.png" alt="three dots" class="three-dots">
+                            </div>
+                            <p class="video-stats">1M views · 1 day ago</p>
+                            <div>
+                                <img src="assets/images/channel.png" alt="channel" class="channel-icon">
+                                <span class="channel-name">Code with PK</span>
+                            </div>
+                            <p>#tags</p>
+                            <span>4K</span>
+                        </div>
+                    </article>
+                    <br />
+                </section>
+
+            </div>
+    </div>
+    </main>
+    </div>
+</body>
+
+</html>
