@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The JavaScript Event Loop — Explained for Beginners</title>
+<style>
+  :root{
+    --bg:#0f1320; --panel:#171c2e; --panel2:#1d2438; --ink:#e8ecf6;
+    --muted:#9aa6c4; --line:#2a3350;
+    --stack:#f7b955;   /* call stack  */
+    --web:#56c2ff;     /* web apis    */
+    --micro:#a78bfa;   /* microtask   */
+    --task:#34d399;    /* task queue  */
+    --loop:#fb7185;    /* event loop  */
+    --accent:#7c9cff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 70% -10%,#1a2138,#0f1320 60%);
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  header h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .tag{font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    padding:4px 10px;border-radius:999px}
+  .sub{color:var(--muted);font-size:13.5px;margin:2px 0 18px}
+
+  /* ---------- Stage / diagram ---------- */
+  .stage{
+    display:grid;
+    grid-template-columns:1.15fr 1fr;
+    gap:16px;
+    background:linear-gradient(180deg,#141a2c,#11162400);
+    border:1px solid var(--line);border-radius:18px;padding:16px;
+  }
+  .col{display:flex;flex-direction:column;gap:14px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 12px 14px;position:relative}
+  .box h3{margin:0 0 10px;font-size:13px;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .hint{font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;margin-left:auto}
+
+  /* call stack grows upward */
+  .stack-area{min-height:190px;display:flex;flex-direction:column-reverse;gap:7px;justify-content:flex-start}
+  /* queues are horizontal lanes */
+  .lane{min-height:46px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .web-area{min-height:64px;display:flex;gap:7px;flex-wrap:wrap;align-content:flex-start}
+
+  .frame{
+    --c:var(--stack);
+    font-family:"SF Mono", "Consolas",monospace;font-size:12.5px;
+    background:color-mix(in srgb,var(--c) 18%,#0b0f1a);
+    border:1px solid color-mix(in srgb,var(--c) 60%,#0b0f1a);
+    color:#fff;border-radius:9px;padding:8px 11px;white-space:nowrap;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+    animation:pop .28s cubic-bezier(.2,1.3,.4,1);
+  }
+  .frame.web{--c:var(--web)} .frame.micro{--c:var(--micro)}
+  .frame.task{--c:var(--task)} .frame.stack{--c:var(--stack)}
+  .frame.run{outline:2px solid #fff;outline-offset:1px;animation:flash .5s ease}
+  @keyframes pop{from{transform:translateY(8px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+  @keyframes flash{0%{box-shadow:0 0 0 0 #fff8}100%{box-shadow:0 4px 14px rgba(0,0,0,.35)}}
+
+  /* Event loop visual */
+  .loop-box{display:flex;align-items:center;gap:14px;justify-content:center}
+  .loop-ring{
+    width:74px;height:74px;border-radius:50%;
+    border:4px dashed var(--loop);
+    display:flex;align-items:center;justify-content:center;font-size:30px;
+    animation:spin 6s linear infinite;
+  }
+  .loop-ring.active{animation:spin 1.1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loop-msg{font-size:13px;color:var(--muted)}
+  .loop-msg b{color:var(--ink)}
+
+  /* console */
+  .console{background:#0a0d16;border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:84px}
+  .console h3{color:var(--muted)}
+  .console .out{font-family:"SF Mono","Consolas",monospace;font-size:13px;line-height:1.7}
+  .console .out span{display:block;animation:pop .25s ease}
+  .console .out .num{color:var(--task);font-weight:700}
+
+  /* ---------- controls + code ---------- */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0}
+  button{
+    background:var(--accent);color:#0b0f1a;border:0;font-weight:700;font-size:13.5px;
+    padding:10px 16px;border-radius:10px;cursor:pointer;transition:.15s transform,.15s filter}
+  button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
+  button.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  select{background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:9px 12px;border-radius:10px;font-size:13px}
+  .speed{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  pre.code{background:#0a0d16;border:1px solid var(--line);border-radius:12px;margin:0;padding:14px;
+    font-family:"SF Mono","Consolas",monospace;font-size:13px;line-height:1.65;overflow:auto}
+  pre.code .ln{display:block;padding:1px 6px;border-radius:5px}
+  pre.code .ln.hl{background:#7c9cff22;outline:1px solid #7c9cff55}
+  .kw{color:#ff9ec5} .fn{color:#56c2ff} .str{color:#ffd479} .com{color:#5f6b8c} .nm{color:#a3e635}
+
+  .explain{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .explain h3{margin:0 0 6px;font-size:14px;color:var(--accent)}
+  .explain p{margin:0;font-size:13.5px;color:var(--ink);line-height:1.6;min-height:42px}
+  .stepcount{font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* ---------- teaching slides ---------- */
+  .slides{margin-top:34px}
+  .slides h2{font-size:18px;margin:0 0 14px;border-left:3px solid var(--accent);padding-left:10px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card .chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  .card h4{margin:0 0 6px;font-size:15px}
+  .card p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+  .card ul{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.6}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 0;font-size:12px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  footer{margin-top:34px;color:var(--muted);font-size:12px;text-align:center}
+  @media(max-width:860px){.stage{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>🔁 The JavaScript Event Loop</h1>
+    <span class="tag">Interactive · Beginner Friendly</span>
+  </header>
+  <p class="sub">JavaScript is <b>single-threaded</b> — one call stack, one task at a time. The event loop is how it
+  still handles timers, network requests and clicks <b>without freezing</b>. Press <b>Run</b> and watch each piece move.</p>
+
+  <!-- ============ STAGE ============ -->
+  <div class="stage">
+    <!-- LEFT: call stack + event loop + console -->
+    <div class="col">
+      <div class="box">
+        <h3><span class="dot" style="background:var(--stack)"></span>Call Stack <span class="hint">runs code · LIFO · grows up ↑</span></h3>
+        <div id="stack" class="stack-area"></div>
+      </div>
+
+      <div class="box loop-box">
+        <div id="ring" class="loop-ring">🔄</div>
+        <div class="loop-msg" id="loopMsg">
+          <b>Event Loop</b><br>Waiting… is the call stack empty?
+        </div>
+      </div>
+
+      <div class="box console">
+        <h3><span class="dot" style="background:var(--task)"></span>Console output</h3>
+        <div id="out" class="out"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: web apis + microtask + task queues -->
+    <div class="col">
+      <div class="box">
+        <h3><span class="dot" style="background:var(--web)"></span>Web APIs <span class="hint">browser does the waiting</span></h3>
+        <div id="web" class="web-area"></div>
+      </div>
+
+      <div class="box">
+        <h3><span class="dot" style="background:var(--micro)"></span>Microtask Queue <span class="hint">⭐ higher priority — emptied first</span></h3>
+        <div id="micro" class="lane"></div>
+      </div>
+
+      <div class="box">
+        <h3><span class="dot" style="background:var(--task)"></span>Task Queue (Callback Queue) <span class="hint">setTimeout, events…</span></h3>
+        <div id="task" class="lane"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CONTROLS ============ -->
+  <div class="controls">
+    <button id="run">▶ Run</button>
+    <button id="step" class="ghost">⏭ Step</button>
+    <button id="reset" class="ghost">↺ Reset</button>
+    <label class="speed">Example:
+      <select id="example">
+        <option value="quiz">The Quiz → 5 1 3 4 2</option>
+        <option value="timeout">setTimeout vs sync code</option>
+        <option value="fetch">fetch + .then (microtask)</option>
+      </select>
+    </label>
+    <span class="speed">Speed
+      <select id="speed">
+        <option value="900">Slow</option>
+        <option value="600" selected>Normal</option>
+        <option value="300">Fast</option>
+      </select>
+    </span>
+  </div>
+
+  <!-- ============ CODE + EXPLAIN ============ -->
+  <div class="grid2">
+    <pre class="code" id="code"></pre>
+    <div class="explain">
+      <h3 id="exTitle">What's happening</h3>
+      <p id="exBody">Choose an example and press <b>Run</b> (auto-play) or <b>Step</b> (one move at a time).</p>
+      <div class="stepcount" id="stepCount"></div>
+    </div>
+  </div>
+
+  <!-- ============ TEACHING SLIDES ============ -->
+  <div class="slides">
+    <h2>The 5 pieces, explained simply</h2>
+    <div class="cards">
+      <div class="card">
+        <span class="chip" style="color:var(--stack)"><span class="dot" style="background:var(--stack)"></span>1 · Call Stack</span>
+        <h4>Where code actually runs</h4>
+        <p>A stack of function calls. The function on top runs to completion, then pops off. There's only <b>one</b> — that's what "single-threaded" means.</p>
+      </div>
+      <div class="card">
+        <span class="chip" style="color:var(--web)"><span class="dot" style="background:var(--web)"></span>2 · Web APIs</span>
+        <h4>The browser's helpers</h4>
+        <p>Timers, <code>fetch</code>, geolocation, DOM events… When you call these, the browser does the slow waiting <b>off the stack</b>, so your page never freezes.</p>
+      </div>
+      <div class="card">
+        <span class="chip" style="color:var(--task)"><span class="dot" style="background:var(--task)"></span>3 · Task Queue</span>
+        <h4>Callbacks wait here</h4>
+        <p>When a <code>setTimeout</code> or event finishes, its callback lines up here (also called the <i>callback queue</i>) — waiting for a free stack.</p>
+      </div>
+      <div class="card">
+        <span class="chip" style="color:var(--micro)"><span class="dot" style="background:var(--micro)"></span>4 · Microtask Queue</span>
+        <h4>The VIP line ⭐</h4>
+        <p>For Promise <code>.then/.catch/.finally</code>, code after <code>await</code>, and <code>queueMicrotask</code>. It has <b>priority</b> and is fully drained before any task runs.</p>
+      </div>
+      <div class="card">
+        <span class="chip" style="color:var(--loop)"><span class="dot" style="background:var(--loop)"></span>5 · Event Loop</span>
+        <h4>The traffic cop</h4>
+        <p>Loops forever: <b>"Is the stack empty?"</b> If yes → drain <b>all</b> microtasks, then take <b>one</b> task. Re-check microtasks after every task.</p>
+      </div>
+      <div class="card" style="border-color:#7c9cff55">
+        <span class="chip" style="color:var(--accent)">★ The golden rule</span>
+        <h4>Order of execution</h4>
+        <ul>
+          <li><b>Synchronous</b> code first (top to bottom)</li>
+          <li>then <b>all microtasks</b> (Promises)</li>
+          <li>then <b>one task</b> (setTimeout) → repeat</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:var(--stack)"></span>Call stack frame</span>
+      <span><span class="dot" style="background:var(--web)"></span>Web API (in browser)</span>
+      <span><span class="dot" style="background:var(--micro)"></span>Microtask</span>
+      <span><span class="dot" style="background:var(--task)"></span>Task / callback</span>
+    </div>
+  </div>
+
+  <footer>Built as a teaching aid · open this file in any browser — no install needed.</footer>
+</div>
+
+<script>
+/* =========================================================================
+   Each example is a hand-authored list of "steps". A step describes ONE
+   visible move so beginners can follow cause → effect. The engine just
+   renders state after each step. This keeps timing 100% predictable.
+   ========================================================================= */
+
+const el = id => document.getElementById(id);
+const stackEl=el('stack'), webEl=el('web'), microEl=el('micro'),
+      taskEl=el('task'), outEl=el('out'), ringEl=el('ring'),
+      loopMsg=el('loopMsg'), exTitle=el('exTitle'), exBody=el('exBody'),
+      stepCount=el('stepCount'), codeEl=el('code');
+
+/* ---- code listings (with simple syntax highlight) ---- */
+const C = {
+  quiz: [
+    `<span class="com">// What gets logged, and in what order?</span>`,
+    `<span class="fn">Promise</span>.<span class="fn">resolve</span>().<span class="fn">then</span>(() => <span class="fn">console.log</span>(<span class="nm">1</span>));`,
+    `<span class="fn">setTimeout</span>(() => <span class="fn">console.log</span>(<span class="nm">2</span>), <span class="nm">10</span>);`,
+    `<span class="fn">queueMicrotask</span>(() => {`,
+    `&nbsp;&nbsp;<span class="fn">console.log</span>(<span class="nm">3</span>);`,
+    `&nbsp;&nbsp;<span class="fn">queueMicrotask</span>(() => <span class="fn">console.log</span>(<span class="nm">4</span>));`,
+    `});`,
+    `<span class="fn">console.log</span>(<span class="nm">5</span>);`,
+  ],
+  timeout: [
+    `<span class="fn">setTimeout</span>(() => <span class="fn">console.log</span>(<span class="str">"100ms"</span>), <span class="nm">100</span>);`,
+    `<span class="fn">setTimeout</span>(() => <span class="fn">console.log</span>(<span class="str">"0ms"</span>), <span class="nm">0</span>);`,
+    `<span class="fn">console.log</span>(<span class="str">"end of script"</span>);`,
+    ``,
+    `<span class="com">// 'end of script' prints FIRST —</span>`,
+    `<span class="com">// the delay is time until the queue,</span>`,
+    `<span class="com">// not time until execution.</span>`,
+  ],
+  fetch: [
+    `<span class="fn">fetch</span>(<span class="str">"/data"</span>)`,
+    `&nbsp;&nbsp;.<span class="fn">then</span>(res => <span class="fn">console.log</span>(<span class="str">"data!"</span>));`,
+    `<span class="fn">setTimeout</span>(() => <span class="fn">console.log</span>(<span class="str">"timeout"</span>), <span class="nm">0</span>);`,
+    `<span class="fn">console.log</span>(<span class="str">"end of script"</span>);`,
+    ``,
+    `<span class="com">// .then is a MICROTASK → beats setTimeout</span>`,
+    `<span class="com">// even though both finish "instantly".</span>`,
+  ],
+};
+
+/* ---- step scripts ----
+   Each step: {stack, web, micro, task, out, ring, line, title, body}
+   Arrays REPLACE the lane each render. 'out' is cumulative (handled below).
+*/
+function S(o){return Object.assign({stack:[],web:[],micro:[],task:[],log:null,ring:false,line:-1},o);}
+
+const SCRIPTS = {
+  /* ---------------- QUIZ: 5 1 3 4 2 ---------------- */
+  quiz: [
+    S({line:1, title:"Promise.resolve().then(...)",
+       body:"A resolved promise's .then callback is registered. Because the promise is already resolved, its callback goes straight to the Microtask Queue.",
+       stack:["Promise.resolve().then"], }),
+    S({line:1, title:"Callback queued as a microtask",
+       body:"The .then handler now waits in the Microtask Queue. Nothing runs yet — we're still reading the script top to bottom.",
+       micro:["then ⇒ log(1)"]}),
+    S({line:2, title:"setTimeout(..., 10)",
+       body:"setTimeout just hands the timer + callback to a Web API. The browser will count 10ms in the background; the stack is freed immediately.",
+       micro:["then ⇒ log(1)"], stack:["setTimeout(10)"]}),
+    S({line:2, title:"Browser starts the timer",
+       body:"The timer lives in the Web APIs area now — off the call stack, so it never blocks anything.",
+       micro:["then ⇒ log(1)"], web:["⏱ timer 10ms ⇒ log(2)"]}),
+    S({line:3, title:"queueMicrotask(...)",
+       body:"queueMicrotask schedules its callback directly onto the Microtask Queue — behind the .then that's already there.",
+       micro:["then ⇒ log(1)"], web:["⏱ timer 10ms ⇒ log(2)"], stack:["queueMicrotask"]}),
+    S({line:3, title:"Second microtask queued",
+       body:"Now two microtasks are waiting. The timer is still ticking in the background.",
+       micro:["then ⇒ log(1)","qmt ⇒ log(3)+"], web:["⏱ timer 10ms ⇒ log(2)"]}),
+    S({line:7, title:"console.log(5)  — synchronous!",
+       body:"This is plain synchronous code, so it runs right now on the stack. ⭐ This is why 5 prints FIRST.",
+       micro:["then ⇒ log(1)","qmt ⇒ log(3)+"], web:["⏱ timer 10ms ⇒ log(2)"], stack:["console.log(5)"], log:"5"}),
+    S({line:-1, title:"Script finished — stack empty",
+       body:"The main script is done. Meanwhile the 10ms timer expired, so its callback moved from Web APIs → Task Queue. Now the Event Loop wakes up.",
+       micro:["then ⇒ log(1)","qmt ⇒ log(3)+"], task:["timer ⇒ log(2)"], ring:true}),
+    S({line:-1, title:"Event Loop: microtasks first ⭐",
+       body:"Stack is empty → the loop drains ALL microtasks before touching the task queue. First microtask runs.",
+       micro:["qmt ⇒ log(3)+"], task:["timer ⇒ log(2)"], stack:["then ⇒ log(1)"], ring:true, log:"1"}),
+    S({line:-1, title:"Next microtask: log(3)",
+       body:"The queueMicrotask callback runs and logs 3. But notice — it schedules ANOTHER microtask inside itself.",
+       micro:["qmt ⇒ log(4)"], task:["timer ⇒ log(2)"], stack:["qmt ⇒ log(3)"], ring:true, log:"3"}),
+    S({line:-1, title:"A microtask made a microtask",
+       body:"The loop must empty the microtask queue completely, so the newly-added log(4) runs before any task. (Do this forever and you'd freeze the page!)",
+       micro:["qmt ⇒ log(4)"], task:["timer ⇒ log(2)"], ring:true}),
+    S({line:-1, title:"log(4) runs",
+       body:"Last microtask executes. Microtask queue is finally empty — only now can the Event Loop look at the Task Queue.",
+       task:["timer ⇒ log(2)"], stack:["qmt ⇒ log(4)"], ring:true, log:"4"}),
+    S({line:-1, title:"Now ONE task: log(2)",
+       body:"With microtasks empty, the loop takes one task from the Task Queue and runs it. The timer callback logs 2.",
+       stack:["timer ⇒ log(2)"], ring:true, log:"2"}),
+    S({line:-1, title:"Done → 5 1 3 4 2 ✅",
+       body:"Sync (5) → all microtasks (1, 3, 4) → task (2). That's the golden rule in action.",
+       ring:false}),
+  ],
+
+  /* ---------------- setTimeout vs sync ---------------- */
+  timeout: [
+    S({line:0, title:"setTimeout(..., 100)",
+       body:"Registers a 100ms timer with the Web API and pops off the stack instantly.",
+       stack:["setTimeout(100)"]}),
+    S({line:0, title:"Timer offloaded to browser",
+       body:"100ms timer now counts down in the Web APIs area.",
+       web:["⏱ 100ms ⇒ log('100ms')"]}),
+    S({line:1, title:"setTimeout(..., 0)",
+       body:"Even a 0ms delay goes through the Web API + Task Queue — it can't skip the line.",
+       web:["⏱ 100ms ⇒ log('100ms')"], stack:["setTimeout(0)"]}),
+    S({line:1, title:"0ms timer offloaded",
+       body:"Both timers are now waiting in the browser.",
+       web:["⏱ 100ms ⇒ log('100ms')","⏱ 0ms ⇒ log('0ms')"]}),
+    S({line:2, title:"console.log('end of script')",
+       body:"Synchronous — runs immediately. ⭐ Prints before BOTH timers, even the 0ms one.",
+       web:["⏱ 100ms ⇒ log('100ms')","⏱ 0ms ⇒ log('0ms')"], stack:["log('end…')"], log:"end of script"}),
+    S({line:-1, title:"0ms timer expires first",
+       body:"Script done, stack empty. The 0ms timer finished, so its callback moves Web API → Task Queue.",
+       web:["⏱ 100ms ⇒ log('100ms')"], task:["log('0ms')"], ring:true}),
+    S({line:-1, title:"Event Loop runs it",
+       body:"No microtasks here, so the loop grabs the task and runs it → logs '0ms'.",
+       web:["⏱ 100ms ⇒ log('100ms')"], stack:["log('0ms')"], ring:true, log:"0ms"}),
+    S({line:-1, title:"100ms timer expires",
+       body:"Later, the 100ms timer fires and its callback enters the Task Queue.",
+       task:["log('100ms')"], ring:true}),
+    S({line:-1, title:"Event Loop runs it → '100ms'",
+       body:"Order: end of script → 0ms → 100ms. The delay is the wait until the QUEUE, not until execution.",
+       stack:["log('100ms')"], ring:true, log:"100ms"}),
+    S({line:-1, title:"Done ✅", body:"Synchronous code always beats any setTimeout, no matter how small the delay.", ring:false}),
+  ],
+
+  /* ---------------- fetch + then ---------------- */
+  fetch: [
+    S({line:0, title:"fetch('/data')",
+       body:"fetch creates a pending Promise and tells the browser to start a network request in the background.",
+       stack:["fetch('/data')"]}),
+    S({line:0, title:"Network request offloaded",
+       body:"The request runs in the Web APIs area. The promise is still pending.",
+       web:["🌐 network ⇒ Promise"]}),
+    S({line:1, title:".then(res => ...)",
+       body:"We attach a handler. The response hasn't arrived, so it's stored as a 'reaction' waiting on the promise.",
+       web:["🌐 network ⇒ Promise (+then)"], stack:[".then(...)"]}),
+    S({line:3, title:"console.log('end of script')",
+       body:"Synchronous code runs now → logs 'end of script' first.",
+       web:["🌐 network ⇒ Promise (+then)"], stack:["log('end…')"], log:"end of script"}),
+    S({line:2, title:"setTimeout(..., 0) registered",
+       body:"A 0ms timer is also handed to the Web API for comparison.",
+       web:["🌐 network ⇒ Promise (+then)","⏱ 0ms ⇒ log('timeout')"]}),
+    S({line:-1, title:"Timer expires → Task Queue",
+       body:"Stack empty. The 0ms timer fires; its callback joins the Task Queue. The network is still loading.",
+       web:["🌐 network ⇒ Promise (+then)"], task:["log('timeout')"], ring:true}),
+    S({line:-1, title:"Server responds!",
+       body:"Data arrives, the promise becomes fulfilled, and the .then handler is queued as a MICROTASK.",
+       micro:["then ⇒ log('data!')"], task:["log('timeout')"], ring:true}),
+    S({line:-1, title:"Microtask wins ⭐",
+       body:"Even though the timer was queued first, microtasks have priority. The .then runs before the task → logs 'data!'.",
+       task:["log('timeout')"], stack:["then ⇒ log('data!')"], ring:true, log:"data!"}),
+    S({line:-1, title:"Then the task",
+       body:"Microtasks empty → loop runs the one task → logs 'timeout'.",
+       stack:["log('timeout')"], ring:true, log:"timeout"}),
+    S({line:-1, title:"Done ✅", body:"Order: end of script → data! → timeout. Promise .then (microtask) beats setTimeout (task).", ring:false}),
+  ],
+};
+
+/* ---------------- engine ---------------- */
+let current='quiz', steps=SCRIPTS.quiz, idx=0, logs=[], playing=false, timer=null;
+
+function renderCode(){
+  codeEl.innerHTML = C[current].map((l,i)=>`<span class="ln" data-l="${i}">${l||'&nbsp;'}</span>`).join('');
+}
+function lane(elm,arr,cls){
+  elm.innerHTML='';
+  arr.forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='frame '+cls+(i===arr.length-1&&cls==='stack'?' run':'');
+    d.textContent=t; elm.appendChild(d);
+  });
+}
+function highlight(line){
+  codeEl.querySelectorAll('.ln').forEach(n=>n.classList.remove('hl'));
+  if(line>=0){const n=codeEl.querySelector(`.ln[data-l="${line}"]`); if(n)n.classList.add('hl');}
+}
+function render(){
+  const s=steps[idx]||S({});
+  lane(stackEl,s.stack,'stack');
+  lane(webEl,s.web,'web');
+  lane(microEl,s.micro,'micro');
+  lane(taskEl,s.task,'task');
+  // mark top stack frame as running
+  const top=stackEl.firstElementChild; if(top)top.classList.add('run');
+  highlight(s.line);
+  exTitle.textContent=s.title||'';
+  exBody.textContent=s.body||'';
+  ringEl.classList.toggle('active',!!s.ring);
+  loopMsg.innerHTML = s.ring
+    ? `<b>Event Loop · running</b><br>Stack empty → checking queues…`
+    : `<b>Event Loop</b><br>Waiting… is the call stack empty?`;
+  outEl.innerHTML = logs.map(v=>`<span><span class="num">▸</span> ${v}</span>`).join('');
+  stepCount.textContent = `Step ${Math.min(idx+1,steps.length)} of ${steps.length}`;
+}
+function applyLog(){
+  // rebuild logs up to idx
+  logs=[];
+  for(let i=0;i<=idx;i++){if(steps[i]&&steps[i].log!=null)logs.push(steps[i].log);}
+}
+function step(){
+  if(idx<steps.length-1){idx++; applyLog(); render();}
+  else stopPlay();
+}
+function stopPlay(){playing=false; clearTimeout(timer); el('run').textContent='▶ Run';}
+function play(){
+  if(playing){stopPlay();return;}
+  if(idx>=steps.length-1) reset();
+  playing=true; el('run').textContent='⏸ Pause';
+  const tick=()=>{
+    if(!playing)return;
+    if(idx>=steps.length-1){stopPlay();return;}
+    step();
+    timer=setTimeout(tick, +el('speed').value);
+  };
+  timer=setTimeout(tick, +el('speed').value);
+}
+function reset(){
+  stopPlay(); idx=0; logs=[]; render();
+}
+function load(name){
+  current=name; steps=SCRIPTS[name]; renderCode(); reset();
+}
+
+el('run').onclick=play;
+el('step').onclick=()=>{stopPlay(); step();};
+el('reset').onclick=reset;
+el('example').onchange=e=>load(e.target.value);
+
+load('quiz');
+</script>
+</body>
+</html>
