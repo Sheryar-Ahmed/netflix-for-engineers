@@ -1,26 +1,35 @@
-const VideoCard = ({ video }) => {
-  return (
-    <article class="video-card">
-      <img src={video.thumbnail} alt={video.title} class="video-thumbnail" />
+const formatCount = (n) => {
+  const num = Number(n) || 0;
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
+  if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
+  return String(num);
+};
 
-      <div class="video-info">
-        <div class="video-meta">
-          <h3 class="video-title">{video?.title}</h3>
-          <img
-            src="assets/images/menu.png"
-            alt="three dots"
-            class="three-dots"
-          />
+const VideoCard = ({ video }) => {
+  const initial = (video?.channel_name || "?").charAt(0).toUpperCase();
+
+  return (
+    <article className="video-card">
+      <div className="thumb-wrap">
+        <img
+          src={video?.thumbnail}
+          alt={video?.title}
+          className="video-thumbnail"
+          loading="lazy"
+        />
+        <span className="thumb-badge">4K</span>
+      </div>
+
+      <div className="video-info">
+        <div className="channel-avatar">{initial}</div>
+        <div className="video-text">
+          <h3 className="video-title">{video?.title}</h3>
+          <span className="channel-name">{video?.channel_name}</span>
+          <span className="video-stats">
+            {formatCount(video?.likes)} likes
+          </span>
+          <span className="video-cat">{video?.cat}</span>
         </div>
-        <p class="video-stats">
-          {video?.views} views · {video?.uploadDate}
-        </p>
-        <div>
-          <img src="${video?.thumbnail}" alt="channel" class="channel-icon" />
-          <span class="channel-name">{video?.channel}</span>
-        </div>
-        <p>#tags</p>
-        <span>4K</span>
       </div>
     </article>
   );

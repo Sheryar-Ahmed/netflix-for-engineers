@@ -1,36 +1,31 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 
-const FilterChips = ({ setChip, handleSearch, chip }) => {
-  const [filters, setFilters] = useState([{ id: 0, cat: "All" }]);
-  const [loading, setLoading] = useState(true);
+const FilterChips = ({ chip, onSelect }) => {
+  const [filters, setFilters] = useState([{ id: "all", cat: "All" }]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchFilters = async () => {
       try {
         const { data } = await api.get("/category");
-        setFilters((prev) => [...data, ...prev]);
-      } catch (error) {
-        setError(error);
-      } finally {
-        setLoading(false);
+        setFilters((prev) => [...prev, ...data]);
+      } catch (err) {
+        setError(err);
       }
     };
 
     fetchFilters();
   }, []);
 
-  console.log("filters", filters, loading, error);
+  if (error) return null;
+
   return (
     <div className="filter-chips-row">
       {filters.map((cat) => (
         <button
           key={cat.id}
-          onClick={() => {
-            setChip(cat.cat);
-            handleSearch("");
-          }}
+          onClick={() => onSelect(cat.cat)}
           className={`filter-chip ${cat.cat === chip ? "active" : ""}`}
         >
           {cat.cat}
