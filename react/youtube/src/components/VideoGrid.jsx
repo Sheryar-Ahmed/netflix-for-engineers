@@ -1,12 +1,14 @@
-import { videos } from "../data/video";
 import VideoCard from "./VideoCard";
+const VideoGrid = ({videos, loading, error}) => {
 
-const VideoGrid = () => {
   return (
-    <section className="video-grid" aria-label="Video Grid">
-      {videos.map((video) => (
+    <section className="video-list" aria-label="Video Grid">
+      {!loading && videos.length > 0 && videos.map((video) => (
         <VideoCard key={video.id} video={video} />
       ))}
+      {loading && <p>Loading...</p>}
+      {!loading && videos.length === 0 && <p>No videos found.</p>}
+      {error && <p>Error: {error.message}</p>}  
     </section>
   );
 };
