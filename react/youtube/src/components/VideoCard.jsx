@@ -1,38 +1,43 @@
-const formatCount = (n) => {
-  const num = Number(n) || 0;
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
-  if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
-  return String(num);
-};
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
-const VideoCard = ({ video }) => {
-  const initial = (video?.channel_name || "?").charAt(0).toUpperCase();
+import { useNavigate } from "react-router"
+
+const VideoCard = ({video}) => {
+
+  const navigate = useNavigate();
+
 
   return (
-    <article className="video-card">
-      <div className="thumb-wrap">
-        <img
-          src={video?.thumbnail}
-          alt={video?.title}
-          className="video-thumbnail"
-          loading="lazy"
-        />
-        <span className="thumb-badge">4K</span>
-      </div>
-
-      <div className="video-info">
-        <div className="channel-avatar">{initial}</div>
-        <div className="video-text">
-          <h3 className="video-title">{video?.title}</h3>
-          <span className="channel-name">{video?.channel_name}</span>
-          <span className="video-stats">
-            {formatCount(video?.likes)} likes
-          </span>
-          <span className="video-cat">{video?.cat}</span>
-        </div>
-      </div>
-    </article>
-  );
-};
+    <Card className="relative mx-auto w-full max-w-sm pt-0">
+      <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
+      <img
+        src={video?.thumbnail}
+        alt="Event cover"
+        className="relative z-20 aspect-video w-full object-cover brightness-60 grayscale dark:brightness-40"
+      />
+      <CardHeader>
+        <CardAction>
+          <Badge variant="secondary">Featured</Badge>
+        </CardAction>
+        <CardTitle>{video?.title}</CardTitle>
+        <CardDescription>
+          {video?.likes} -- {video?.cat}
+        </CardDescription>
+      </CardHeader>
+      <CardFooter>
+        <Button onClick={() => navigate(`/watch/${video.id}`)} className="w-full">Watch Video</Button>
+      </CardFooter>
+    </Card>
+  )
+}
 
 export default VideoCard;
